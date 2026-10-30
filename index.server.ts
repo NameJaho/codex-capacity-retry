@@ -4,7 +4,9 @@ import { latestFailureText } from "./server/inspect";
 const CAPACITY_PATTERN = /at capacity|please try a different model/i;
 const FOLLOW_UP = "继续";
 const RETRY_DELAY_MS = 15_000;
-const MAX_RETRIES = 5;
+// 0 means unlimited retries. Set a positive number to cap retries per
+// consecutive capacity-error sequence.
+const MAX_RETRIES = 0;
 const TIMELINE_TAIL = 20;
 
 export default function contribute(server: PluginServerContext) {
@@ -29,13 +31,14 @@ export default function contribute(server: PluginServerContext) {
     }
 
     const attempt = (attempts.get(agentId) ?? 0) + 1;
-    if (attempt > MAX_RETRIES) {
+    if (MAX_RETRIES > 0 && attempt > MAX_RETRIES) {
       console.log(`Giving up on ${agentId} after ${MAX_RETRIES} capacity retries`);
       return;
     }
     attempts.set(agentId, attempt);
 
-    console.log(`Capacity error on ${agentId}, retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`);
+    const retryLabel = MAX_RETRIES > 0 ? `${attempt}/${MAX_RETRIES}` : `${attempt}`;
+    console.log(`Capacity error on ${agentId}, retry ${retryLabel} in ${RETRY_DELAY_MS}ms`);
     const timer = setTimeout(() => {
       timers.delete(timer);
       if (context.signal.aborted) return;

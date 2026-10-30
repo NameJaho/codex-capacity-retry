@@ -18,9 +18,10 @@ Selected model is at capacity. Please try a different model.
 
 只检查错误信息，不检查 agent 的正文回复和思考内容。所以 agent 只是在对话里"讨论"这句报错时不会误触发，你自己发的消息里带这句话也不会。
 
-### 防止无限重试
+### 重试次数
 
-- 同一个 agent 最多连续自动重试 5 次，超过后停止并记录日志。
+- 默认会持续自动重试，直到某一轮正常结束、回合被取消，或插件被停用。
+- 如需限制次数，将 `index.server.ts` 顶部的 `MAX_RETRIES` 改为正整数；达到上限后停止并记录日志。设置为 `0` 表示不限制。
 - 只要某一轮正常结束（没有命中报错），计数就清零。
 - 回合被手动取消时也会清零，不会重试。
 
@@ -85,7 +86,7 @@ paseo plugin ls codex-capacity-retry
 | `CAPACITY_PATTERN` | `/at capacity\|please try a different model/i` | 判定为容量报错的正则 |
 | `FOLLOW_UP` | `"继续"` | 自动发送的消息内容 |
 | `RETRY_DELAY_MS` | `15000` | 检测到报错后等待多久再重试（毫秒） |
-| `MAX_RETRIES` | `5` | 同一 agent 最多连续重试次数 |
+| `MAX_RETRIES` | `0` | 同一 agent 最多连续重试次数；`0` 表示不限次数 |
 | `TIMELINE_TAIL` | `20` | 读取时间线末尾多少条记录 |
 
 改完后重新加载：
@@ -109,7 +110,7 @@ paseo plugin logs codex-capacity-retry
 Capacity error on <agentId>, retry 1/5 in 15000ms
 ```
 
-达到上限时会输出：
+设置了正整数上限并达到上限时会输出：
 
 ```
 Giving up on <agentId> after 5 capacity retries
@@ -129,7 +130,7 @@ paseo plugin remove codex-capacity-retry    # 卸载
 
 - 重试是发送一条新消息，不会重放失败回合里的附件，也不会撤销已执行的工具操作。
 - 重试计数保存在内存里，插件重载或 daemon 重启后会清零。
-- 重试只发送 `继续`，不会切换模型。如果模型长时间满载，会在 5 次后停止，需要你手动处理。
+- 重试只发送 `继续`，不会切换模型。如果模型长时间满载且 `MAX_RETRIES` 为 `0`，插件会持续重试；设置正整数可以限制连续重试次数。
 
 ## 项目结构
 
